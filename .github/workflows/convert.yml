@@ -1,0 +1,54 @@
+name: Convert Files to Markdown
+
+on:
+  push:
+    paths:
+      - 'input_files/**' # Menjalankan action saat ada file baru di folder 'input_files'
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install MarkItDown
+        run: |
+          pip install markitdown
+
+      - name: Process Files
+        run: |
+          mkdir -p output_md
+          python -c "
+          import os
+          from markitdown import MarkItDown
+
+          md = MarkItDown()
+          input_dir = 'input_files'
+          output_dir = 'output_md'
+
+          if os.path.exists(input_dir):
+              for filename in os.listdir(input_dir):
+                  file_path = os.path.join(input_dir, filename)
+                  if os.path.isfile(file_path):
+                      base_name = os.path.splitext(filename)[0]
+                      try:
+                          res = md.convert(file_path)
+                          with open(f'{output_dir}/{base_name}.md', 'w', encoding='utf-8') as f:
+                              f.write(res.text_content)
+                      except Exception as e:
+                          print(f'Error processing {filename}: {e}')
+          "
+
+      - name: Commit and Push converted Markdown files
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add output_md/
+          git commit -m "Auto-convert uploaded files to markdown" || exit 0
+          git push
